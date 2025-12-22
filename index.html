@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Type Matchup Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Montserrat:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #f4f7f6; --bg-card: #ffffff; --text-main: #2c3e50; --text-sub: #7f8c8d;
+            --accent: #4a90e2; --border: #e1e8ed; --shadow: rgba(0,0,0,0.08);
+            --normal: #A8A77A; --fire: #EE8130; --water: #6390F0; --electric: #F7D02C;
+            --grass: #7AC74C; --ice: #96D9D6; --fighting: #C22E28; --poison: #A33EA1;
+            --ground: #E2BF65; --flying: #A98FF3; --psychic: #F95587; --bug: #A6B91A;
+            --rock: #B6A136; --ghost: #735797; --dragon: #6F35FC; --steel: #B7B7CE;
+            --fairy: #D685AD;
+        }
+
+        [data-theme="dark"] {
+            --bg-body: #1a1a2e; --bg-card: #16213e; --text-main: #f0f0f0; --text-sub: #a0a0a0;
+            --accent: #e94560; --border: #2a2a40; --shadow: rgba(0,0,0,0.3);
+        }
+
+        * { box-sizing: border-box; transition: background-color 0.3s, color 0.3s; }
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; }
+
+        #preview-wrapper { width: 100%; margin: 0 auto; flex: 1; display: flex; flex-direction: column; transition: width 0.5s ease; }
+        #preview-wrapper.mode-mobile { width: 375px; border-left: 10px solid #333; border-right: 10px solid #333; border-radius: 30px; margin: 20px auto; overflow: hidden; background: var(--bg-body); }
+        #preview-wrapper.mode-tablet { width: 768px; border-left: 15px solid #333; border-right: 15px solid #333; border-radius: 20px; margin: 20px auto; background: var(--bg-body); }
+
+        header { background: var(--bg-card); box-shadow: 0 2px 10px var(--shadow); position: sticky; top: 0; z-index: 100; padding: 0 20px; }
+        .nav-container { max-width: 1000px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; height: 70px; }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text-main); text-decoration: none; }
+        .logo span { color: var(--accent); }
+
+        .preview-controls { display: flex; gap: 5px; background: var(--bg-body); padding: 5px; border-radius: 8px; border: 1px solid var(--border); }
+        .preview-btn { background: transparent; border: none; cursor: pointer; padding: 5px 10px; font-size: 1.2rem; border-radius: 4px; color: var(--text-sub); }
+        .preview-btn.active { background: var(--accent); color: white; }
+
+        main { flex: 1; max-width: 900px; width: 100%; margin: 30px auto; padding: 0 20px; }
+
+        .tab-nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        .tab-btn { background: transparent; border: none; color: var(--text-sub); font-size: 1rem; font-weight: 700; cursor: pointer; padding: 10px 20px; border-radius: 8px; }
+        .tab-btn.active { color: var(--accent); background: rgba(74, 144, 226, 0.1); }
+        .tab-content { display: none; animation: fadeIn 0.4s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        #selected-types-display { min-height: 50px; display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .selected-chip { padding: 6px 14px; border-radius: 50px; color: white; font-weight: 500; display: flex; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-size: 0.9rem; }
+
+        #type-selector-wrapper { position: relative; background: var(--bg-card); border-radius: 16px; padding: 15px 45px; box-shadow: 0 4px 20px var(--shadow); margin-bottom: 20px; border: 1px solid var(--border); }
+        #type-selector { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; scroll-behavior: smooth; scrollbar-width: none; }
+        #type-selector::-webkit-scrollbar { display: none; }
+        .nav-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 50%; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px var(--shadow); }
+        .nav-prev { left: 8px; } .nav-next { right: 8px; }
+
+        .type-btn { flex: 0 0 auto; padding: 8px 18px; border-radius: 50px; background: var(--bg-body); border: 2px solid transparent; color: var(--text-sub); font-weight: 700; cursor: pointer; font-size: 0.9rem; min-width: 70px; }
+        .type-btn:hover { transform: translateY(-3px); }
+        .type-btn.selected { color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border-color: transparent; }
+
+        .type-btn[data-type="normal"]:hover, .type-btn.selected[data-type="normal"] { background: var(--normal); color:white; }
+        .type-btn[data-type="fire"]:hover, .type-btn.selected[data-type="fire"] { background: var(--fire); color:white; }
+        .type-btn[data-type="water"]:hover, .type-btn.selected[data-type="water"] { background: var(--water); color:white; }
+        .type-btn[data-type="grass"]:hover, .type-btn.selected[data-type="grass"] { background: var(--grass); color:white; }
+        .type-btn[data-type="electric"]:hover, .type-btn.selected[data-type="electric"] { background: var(--electric); color:white; }
+        .type-btn[data-type="ice"]:hover, .type-btn.selected[data-type="ice"] { background: var(--ice); color:white; }
+        .type-btn[data-type="fighting"]:hover, .type-btn.selected[data-type="fighting"] { background: var(--fighting); color:white; }
+        .type-btn[data-type="poison"]:hover, .type-btn.selected[data-type="poison"] { background: var(--poison); color:white; }
+        .type-btn[data-type="ground"]:hover, .type-btn.selected[data-type="ground"] { background: var(--ground); color:white; }
+        .type-btn[data-type="flying"]:hover, .type-btn.selected[data-type="flying"] { background: var(--flying); color:white; }
+        .type-btn[data-type="psychic"]:hover, .type-btn.selected[data-type="psychic"] { background: var(--psychic); color:white; }
+        .type-btn[data-type="bug"]:hover, .type-btn.selected[data-type="bug"] { background: var(--bug); color:white; }
+        .type-btn[data-type="rock"]:hover, .type-btn.selected[data-type="rock"] { background: var(--rock); color:white; }
+        .type-btn[data-type="ghost"]:hover, .type-btn.selected[data-type="ghost"] { background: var(--ghost); color:white; }
+        .type-btn[data-type="dragon"]:hover, .type-btn.selected[data-type="dragon"] { background: var(--dragon); color:white; }
+        .type-btn[data-type="steel"]:hover, .type-btn.selected[data-type="steel"] { background: var(--steel); color:white; }
+        .type-btn[data-type="fairy"]:hover, .type-btn.selected[data-type="fairy"] { background: var(--fairy); color:white; }
+
+        .preset-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 20px 0; }
+        .p-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .p-btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+
+        #visual-showcase { margin-top: 30px; text-align: center; background: var(--bg-card); padding: 30px; border-radius: 12px; border: 1px solid var(--border); min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .resonance-label { font-weight: bold; font-size: 1.3rem; color: var(--accent); margin-bottom: 8px; }
+        .resonance-desc { font-size: 0.95rem; color: var(--text-sub); margin-bottom: 25px; max-width: 500px; line-height: 1.5; }
+        .orb-container { display: flex; gap: 20px; align-items: center; justify-content: center; margin-bottom: 20px; }
+        .type-orb { width: 85px; height: 85px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 1.1rem; box-shadow: 0 0 25px rgba(0,0,0,0.2); position: relative; animation: pulse 2s ease-in-out infinite; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .add-team-btn { background: var(--accent); color: white; border: none; padding: 10px 24px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 1rem; box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3); }
+
+        #results { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-top: 20px; }
+        .result-group { background: var(--bg-card); padding: 15px; border-radius: 12px; border-top: 5px solid #ccc; box-shadow: 0 4px 12px var(--shadow); }
+        .result-group strong { display: block; margin-bottom: 10px; font-size: 0.95rem; }
+        .res-badge { display: inline-block; padding: 4px 8px; margin: 3px; border-radius: 4px; background: var(--bg-body); color: var(--text-main); font-size: 0.85rem; border: 1px solid var(--border); font-weight: bold; }
+
+        .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .team-slot { background: var(--bg-card); border: 2px dashed var(--border); border-radius: 12px; height: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        .type-capsule { width: 90%; height: 70%; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .slot-remove { position: absolute; top: 5px; right: 5px; background: #ff4d4d; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; opacity: 0; z-index: 5; }
+        .team-slot:hover .slot-remove { opacity: 1; }
+        .analysis-report { background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .weakness-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); align-items: center; }
+        .weakness-count { font-weight: bold; color: #ff4d4d; background: rgba(255, 77, 77, 0.1); padding: 2px 8px; border-radius: 10px; }
+
+        #qte-container { background: var(--bg-card); border-radius: 20px; padding: 50px; text-align: center; box-shadow: 0 10px 30px var(--shadow); max-width: 600px; margin: 0 auto; }
+        .qte-center-box { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+        #start-btn { background: var(--accent); color: white; border: none; padding: 15px 40px; border-radius: 50px; font-size: 1.2rem; cursor: pointer; font-weight: 800; margin-top: 20px; box-shadow: 0 5px 15px rgba(74, 144, 226, 0.3); }
+
+        footer { background: var(--bg-card); border-top: 1px solid var(--border); padding: 30px 20px; margin-top: auto; text-align: center; color: var(--text-sub); font-size: 0.9rem; }
+    </style>
+</head>
+<body data-theme="light">
+
+    <div id="preview-wrapper" class="mode-desktop">
+        <header>
+            <div class="nav-container">
+                <a href="#" class="logo">TYPE <span>MATCHUP PRO</span></a>
+                <div class="preview-controls">
+                    <button class="preview-btn" onclick="setPreviewMode('mobile')">📱</button>
+                    <button class="preview-btn" onclick="setPreviewMode('tablet')">💊</button>
+                    <button class="preview-btn active" onclick="setPreviewMode('desktop')">💻</button>
+                </div>
+                <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="openTab('calculator')">📊 屬性診斷</button>
+                <button class="tab-btn" onclick="openTab('teambuilder')">🛡️ 隊伍建立</button>
+                <button class="tab-btn" onclick="openTab('qte')">⚡ 反應訓練</button>
+            </div>
+
+            <div id="calculator" class="tab-content active">
+                <div id="selected-types-display"></div>
+                <section id="type-selector-wrapper">
+                    <button class="nav-arrow nav-prev" onclick="scrollSelector(-200)">&#10094;</button>
+                    <div id="type-selector"></div>
+                    <button class="nav-arrow nav-next" onclick="scrollSelector(200)">&#10095;</button>
+                </section>
+
+                <div class="preset-grid">
+                    <button class="p-btn" onclick="applyPreset(['water', 'ground'])">💧 沼王 (地+水)</button>
+                    <button class="p-btn" onclick="applyPreset(['steel', 'fairy'])">🧚 蒼響 (鋼+妖)</button>
+                    <button class="p-btn" onclick="applyPreset(['ghost', 'normal'])">👻 索羅亞克 (鬼+普)</button>
+                    <button class="p-btn" onclick="applyPreset(['fire', 'steel'])">⚙️ 席多藍恩 (火+鋼)</button>
+                    <button class="p-btn" onclick="applyPreset(['steel', 'flying'])">🕊️ 盔甲鳥 (鋼+飛)</button>
+                    <button class="p-btn" onclick="applyPreset(['bug', 'steel'])">⚔️ 巨鉗螳螂 (蟲+鋼)</button>
+                    <button onclick="clearSelection()" style="background:transparent; border:1px solid #ccc; padding:6px 16px; border-radius:20px; font-size:0.8rem; cursor:pointer;">✕ 重選</button>
+                </div>
+
+                <div id="visual-showcase">
+                    <div class="resonance-label" id="res-title">等待屬性輸入</div>
+                    <div class="resonance-desc" id="res-summary">請選擇屬性組合，系統將根據數據進行對戰戰略診斷。</div>
+                    <div id="visual-content"></div>
+                </div>
+
+                <div id="results">
+                    <div class="result-group" style="border-color: #ff4d4d;"><strong>4x 致命弱點</strong><div id="res-4x"></div></div>
+                    <div class="result-group" style="border-color: #ff9f43;"><strong>2x 弱點</strong><div id="res-2x"></div></div>
+                    <div class="result-group" style="border-color: #a0a0a0;"><strong>1x 普通傷害</strong><div id="res-1x"></div></div>
+                    <div class="result-group" style="border-color: #1dd1a1;"><strong>0.5x 抵抗</strong><div id="res-05x"></div></div>
+                    <div class="result-group" style="border-color: #10ac84;"><strong>0.25x 強力抵抗</strong><div id="res-025x"></div></div>
+                    <div class="result-group" style="border-color: #576574;"><strong>0x 免疫</strong><div id="res-0x"></div></div>
+                </div>
+            </div>
+
+            <div id="teambuilder" class="tab-content">
+                <div class="team-grid" id="team-grid"></div>
+                <div class="analysis-report">
+                    <h3>🛡️ 隊伍綜合防禦報告</h3>
+                    <div id="analysis-content"><p style="color: #aaa; text-align: center;">尚未建立隊伍資料。</p></div>
+                </div>
+            </div>
+
+            <div id="qte" class="tab-content">
+                <div id="qte-container">
+                    <div class="qte-center-box">
+                        <h2>⚡ 屬性克制反應挑戰</h2>
+                        <h3 style="font-size: 2.5rem; color: var(--accent); margin: 10px 0;">得分: <span id="current-score">0</span></h3>
+                        <div id="game-ui" style="display:none; width: 100%;">
+                            <div style="height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin-bottom: 25px;"><div id="timer-bar" style="height: 100%; width: 100%; background: var(--fire); transition: width 0.1s linear;"></div></div>
+                            <div style="display: flex; justify-content: center; gap: 20px; align-items: center; margin-bottom: 40px;"><div class="type-orb" id="qte-atk">?</div><span style="font-weight: 800; font-size: 1.5rem;">VS</span><div class="type-orb" id="qte-def">?</div></div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;"><button class="type-btn" onclick="checkAnswer(2)" style="border: 2px solid var(--border); padding:15px;">2x (絕佳)</button><button class="type-btn" onclick="checkAnswer(1)" style="border: 2px solid var(--border); padding:15px;">1x (一般)</button><button class="type-btn" onclick="checkAnswer(0.5)" style="border: 2px solid var(--border); padding:15px;">0.5x (不佳)</button><button class="type-btn" onclick="checkAnswer(0)" style="border: 2px solid var(--border); padding:15px;">0x (無效)</button></div>
+                        </div>
+                        <button id="start-btn" onclick="startQTE()">開始挑戰</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <footer>
+            <p>學號：41232101 | 黃柏崙</p>
+            <p>© 2025 Type Matchup Pro. | 屬性戰略系統</p>
+        </footer>
+    </div>
+
+    <script>
+        const type_chart = { "normal": { "rock": 0.5, "ghost": 0, "steel": 0.5 }, "fire": { "fire": 0.5, "water": 0.5, "grass": 2, "ice": 2, "bug": 2, "rock": 0.5, "steel": 2, "dragon": 0.5, "fairy": 1 }, "water": { "fire": 2, "water": 0.5, "grass": 0.5, "ground": 2, "rock": 2, "dragon": 0.5 }, "grass": { "fire": 0.5, "water": 2, "grass": 0.5, "poison": 0.5, "ground": 2, "flying": 0.5, "bug": 0.5, "rock": 2, "dragon": 0.5, "steel": 0.5 }, "electric": { "water": 2, "electric": 0.5, "grass": 0.5, "ground": 0, "flying": 2, "dragon": 0.5 }, "ice": { "fire": 0.5, "water": 0.5, "grass": 2, "ice": 0.5, "ground": 2, "flying": 2, "dragon": 2, "steel": 0.5 }, "fighting": { "normal": 2, "ice": 2, "poison": 0.5, "flying": 0.5, "psychic": 0.5, "bug": 0.5, "rock": 2, "ghost": 0, "steel": 2, "fairy": 0.5 }, "poison": { "grass": 2, "poison": 0.5, "ground": 0.5, "rock": 0.5, "ghost": 0.5, "steel": 0, "fairy": 2 }, "ground": { "fire": 2, "electric": 2, "grass": 0.5, "poison": 2, "flying": 0, "bug": 0.5, "rock": 2, "steel": 2 }, "flying": { "electric": 0.5, "grass": 2, "fighting": 2, "bug": 2, "rock": 0.5, "steel": 0.5 }, "psychic": { "fighting": 2, "poison": 2, "steel": 0.5, "psychic": 0.5, "dark": 0 }, "bug": { "fire": 0.5, "grass": 2, "fighting": 0.5, "poison": 0.5, "flying": 0.5, "psychic": 2, "ghost": 0.5, "steel": 0.5, "fairy": 0.5 }, "rock": { "fire": 2, "ice": 2, "fighting": 0.5, "ground": 0.5, "flying": 2, "bug": 2, "steel": 0.5 }, "ghost": { "normal": 0, "fighting": 0, "poison": 1, "bug": 1, "ghost": 2, "dark": 0.5 }, "dragon": { "steel": 0.5, "fairy": 0, "dragon": 2 }, "steel": { "fire": 0.5, "water": 0.5, "electric": 0.5, "ice": 2, "rock": 2, "steel": 0.5, "fairy": 2 }, "fairy": { "fighting": 2, "poison": 0.5, "bug": 2, "dragon": 2, "dark": 2, "steel": 0.5, "fire": 0.5 } };
+        const type_names = { "normal": "一般", "fire": "火", "water": "水", "electric": "電", "grass": "草", "ice": "冰", "fighting": "格鬥", "poison": "毒", "ground": "地面", "flying": "飛行", "psychic": "超能", "bug": "蟲", "rock": "岩石", "ghost": "幽靈", "dragon": "龍", "steel": "鋼", "fairy": "妖精" };
+        const type_colors = { "normal": "#A8A77A", "fire": "#EE8130", "water": "#6390F0", "electric": "#F7D02C", "grass": "#7AC74C", "ice": "#96D9D6", "fighting": "#C22E28", "poison": "#A33EA1", "ground": "#E2BF65", "flying": "#A98FF3", "psychic": "#F95587", "bug": "#A6B91A", "rock": "#B6A136", "ghost": "#735797", "dragon": "#6F35FC", "steel": "#B7B7CE", "fairy": "#D685AD" };
+        const all_types = Object.keys(type_chart);
+
+        let selected_types = [];
+        let myTeam = [];
+
+        function init() {
+            const container = document.getElementById('type-selector');
+            all_types.forEach(type => {
+                const btn = document.createElement('button');
+                btn.className = 'type-btn'; btn.setAttribute('data-type', type);
+                btn.textContent = type_names[type]; btn.onclick = () => selectType(type);
+                container.appendChild(btn);
+            });
+            renderSelectedTypes(); renderTeamGrid();
+        }
+
+        function selectType(type) {
+            const idx = selected_types.indexOf(type);
+            const btn = document.querySelector(`.type-btn[data-type="${type}"]`);
+            if (idx > -1) { selected_types.splice(idx, 1); btn.classList.remove('selected'); }
+            else if (selected_types.length < 2) { selected_types.push(type); btn.classList.add('selected'); }
+            else { alert("最多選擇 2 個屬性"); return; }
+            refreshAll();
+        }
+
+        function refreshAll() { renderSelectedTypes(); calculate(); updateVisualizer(); }
+
+        function applyPreset(types) {
+            selected_types = [];
+            document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+            types.forEach(t => { selected_types.push(t); document.querySelector(`.type-btn[data-type="${t}"]`).classList.add('selected'); });
+            refreshAll();
+        }
+
+        function calculate() {
+            const res = { "4x":[], "2x":[], "1x":[], "05x":[], "025x":[], "0x":[] };
+            ['4x','2x','1x','05x','025x','0x'].forEach(k => { const el = document.getElementById(`res-${k}`); if(el) el.innerHTML = ''; });
+            if (selected_types.length === 0) return;
+            all_types.forEach(atk => {
+                let m = 1; selected_types.forEach(def => m *= (type_chart[atk][def]!==undefined ? type_chart[atk][def] : 1));
+                if (m === 4) res["4x"].push(atk); else if (m === 2) res["2x"].push(atk); else if (m === 1) res["1x"].push(atk);
+                else if (m === 0.5) res["05x"].push(atk); else if (m === 0.25) res["025x"].push(atk); else if (m === 0) res["0x"].push(atk);
+            });
+            const draw = (id, list) => {
+                const el = document.getElementById(id); if(!el) return;
+                if(list.length===0) el.textContent='-';
+                else list.forEach(t => { const s = document.createElement('span'); s.className='res-badge'; s.textContent=type_names[t]; el.appendChild(s); });
+            };
+            draw('res-4x', res["4x"]); draw('res-2x', res["2x"]); draw('res-1x', res["1x"]);
+            draw('res-05x', res["05x"]); draw('res-025x', res["025x"]); draw('res-0x', res["0x"]);
+        }
+
+        function updateVisualizer() {
+            const container = document.getElementById('visual-content');
+            const titleEl = document.getElementById('res-title');
+            const summaryEl = document.getElementById('res-summary');
+            if (selected_types.length === 0) { container.innerHTML = ''; titleEl.textContent = "等待屬性輸入"; summaryEl.textContent = "請選擇屬性組合，系統將根據數據進行戰略診斷。"; return; }
+            let html = '<div class="orb-container">';
+            selected_types.forEach((type, idx) => {
+                const color = type_colors[type];
+                html += `<div class="type-orb" style="background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), ${color}); color: white;">${type_names[type]}</div>`;
+                if(idx === 0 && selected_types.length === 2) html += '<div style="font-size:2rem; color:var(--border);">+</div>';
+            });
+            html += '</div><button class="add-team-btn" onclick="addToTeam()">➕ 加入此組合到隊伍</button>';
+            container.innerHTML = html;
+            const sortedTypes = [...selected_types].sort().join(',');
+            const presets = {
+                'ground,water': ["💧 地表最強聯防 (沼王級)", "僅有一個 4 倍草系弱點且免疫電系。這是對戰中最穩定的防禦基底。"],
+                'fairy,steel': ["🛡️ 巔峰抗性神話 (蒼響級)", "具備 9 個抗性與 2 個免疫，對戰環境中的絕對防禦霸主。"],
+                'ghost,normal': ["👻 虛無支配者 (索羅亞克級)", "罕見的 3 種免疫 (普、鬥、鬼)，能徹底廢掉對手的特定戰術。"],
+                'fire,steel': ["⚙️ 熔岩堡壘 (席多藍恩級)", "擁有極誇張的抗性數量，雖然 4 倍怕地面，但具備極高戰略價值。"],
+                'flying,steel': ["🕊️ 天空之盾 (盔甲鳥級)", "經典鋼飛組合，完美覆蓋地、蟲、草等多種威脅，是強力的物理盾。"],
+                'bug,steel': ["⚔️ 鋼鐵獵手 (巨鉗螳螂級)", "只有火系一個弱點！具備極強的生存能力與交換價值。"]
+            };
+            if (presets[sortedTypes]) { [titleEl.textContent, summaryEl.textContent] = presets[sortedTypes]; }
+            else if (selected_types.length === 2) {
+                const count4x = document.getElementById('res-4x').getElementsByTagName('span').length;
+                if (count4x >= 2) { titleEl.textContent = "🧨 戰場玻璃大砲"; summaryEl.textContent = "具備極端的弱點分佈，雖然打點廣但生存極其依賴操作。"; }
+                else { titleEl.textContent = "⚖️ 均衡防禦配置"; summaryEl.textContent = "具備標準的防禦分佈，適合大多數對戰情境。"; }
+            } else { titleEl.textContent = `${type_names[selected_types[0]]}系 純屬性分析`; summaryEl.textContent = "單一屬性防禦透明，建議增加第二屬性來中和弱點。"; }
+        }
+
+        function addToTeam() {
+            if(selected_types.length === 0) return;
+            if(myTeam.length >= 6) { alert("隊伍已滿！"); return; }
+            myTeam.push([...selected_types]); renderTeamGrid(); analyzeTeam(); openTab('teambuilder');
+        }
+
+        function removeFromTeam(i) { myTeam.splice(i, 1); renderTeamGrid(); analyzeTeam(); }
+
+        function renderTeamGrid() {
+            const grid = document.getElementById('team-grid'); grid.innerHTML = '';
+            for(let i=0; i<6; i++) {
+                const slot = document.createElement('div'); slot.className = 'team-slot';
+                if(myTeam[i]) {
+                    slot.classList.add('filled');
+                    const types = myTeam[i];
+                    const bg = types.length === 1 ? type_colors[types[0]] : `linear-gradient(135deg, ${type_colors[types[0]]}, ${type_colors[types[1]]})`;
+                    slot.innerHTML = `<div class="type-capsule" style="background:${bg}">${types.map(t=>`<span>${type_names[t]}</span>`).join('')}</div><div class="slot-remove" onclick="removeFromTeam(${i})">✕</div>`;
+                } else slot.innerHTML = '<span style="color:#ddd; font-size:2rem;">+</span>';
+                grid.appendChild(slot);
+            }
+        }
+
+        function analyzeTeam() {
+            const report = document.getElementById('analysis-content');
+            if(myTeam.length === 0) { report.innerHTML = '<p style="color: #aaa; text-align: center;">尚未建立隊伍資料。</p>'; return; }
+            let counts = {}; all_types.forEach(t => counts[t] = 0);
+            myTeam.forEach(m => {
+                all_types.forEach(atk => {
+                    let v = 1; m.forEach(def => v *= (type_chart[atk][def]||1));
+                    if(v >= 2) counts[atk]++;
+                });
+            });
+            let html = '';
+            Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([t, c]) => {
+                if(c>0) html += `<div class="weakness-row"><span>${type_names[t]}系</span><span class="weakness-count">${c} 隻怕它</span></div>`;
+            });
+            report.innerHTML = html || '<p style="text-align:center;">完美防禦！隊伍沒有任何共同弱點。</p>';
+        }
+
+        function scrollSelector(d) { document.getElementById('type-selector').scrollBy({ left: d, behavior: 'smooth' }); }
+        function openTab(id) { 
+            document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(id));
+            if(activeBtn) activeBtn.classList.add('active');
+        }
+        function clearSelection() { selected_types=[]; document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected')); refreshAll(); }
+        function setPreviewMode(m) { document.getElementById('preview-wrapper').className = `mode-${m}`; document.querySelectorAll('.preview-btn').forEach(b=>b.classList.remove('active')); 
+            const activePreview = Array.from(document.querySelectorAll('.preview-btn')).find(b => b.getAttribute('onclick').includes(m));
+            if(activePreview) activePreview.classList.add('active');
+        }
+        function toggleTheme() { const b=document.body; b.setAttribute('data-theme', b.getAttribute('data-theme')==='light'?'dark':'light'); }
+        function renderSelectedTypes() {
+            const d = document.getElementById('selected-types-display'); d.innerHTML = '';
+            if (selected_types.length === 0) { d.innerHTML = '<span style="color:var(--text-sub); font-size:0.9rem;">(請點擊下方圖標)</span>'; return; }
+            selected_types.forEach(t => {
+                const c = document.createElement('div'); c.className = 'selected-chip'; c.style.backgroundColor = type_colors[t];
+                c.innerHTML = `${type_names[t]}`; d.appendChild(c);
+            });
+        }
+
+        let sc=0, qt, tl=0, cq={};
+        function startQTE(){ sc=0; document.getElementById('current-score').textContent=0; document.getElementById('game-ui').style.display='block'; document.getElementById('start-btn').style.display='none'; nq(); }
+        function nq(){
+            const a=all_types[Math.floor(Math.random()*all_types.length)], d=all_types[Math.floor(Math.random()*all_types.length)];
+            cq={ans:(type_chart[a][d]||1)};
+            const atkOrb = document.getElementById('qte-atk'); const defOrb = document.getElementById('qte-def');
+            atkOrb.textContent=type_names[a]; atkOrb.style.backgroundColor=type_colors[a];
+            defOrb.textContent=type_names[d]; defOrb.style.backgroundColor=type_colors[d];
+            tl=100; clearInterval(qt); qt=setInterval(()=>{tl-=1.2; document.getElementById('timer-bar').style.width=tl+'%'; if(tl<=0)endg()},50);
+        }
+        function checkAnswer(v){ if(v===cq.ans){sc+=10; document.getElementById('current-score').textContent=sc; nq();} else {tl-=20;} }
+        function endg(){ clearInterval(qt); alert('得分:'+sc); document.getElementById('game-ui').style.display='none'; document.getElementById('start-btn').style.display='inline-block'; document.getElementById('start-btn').textContent = '再次挑戰'; }
+
+        init();
+    </script>
+</body>
+</html>
